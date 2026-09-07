@@ -531,35 +531,33 @@ def generate_alert(role):
     # Satellite tile info (note: now returns current template and date, but UI allows edit)
     sat = nasa_gibs_tile_template()
     sat_html = f"<div><strong>Satellite tile (GIBS):</strong> {sat['layer']} (date {sat['date']}) — use template in dashboard.</div>"
-
     prediction_html = f"""
-    <div style="margin-top:10px; padding:10px; background: #ffffff; border-radius:8px;">
-        <strong>Prediction (6h):</strong> Water {pred6['water_level']}m, Rain {pred6['rainfall']}mm — {pred6['risk_level']}<br>
-        <strong>Prediction (12h):</strong> Water {pred12['water_level']}m, Rain {pred12['rainfall']}mm — {pred12['risk_level']}<br>
-        {meteo_html}
-        {sat_html}
-    </div>
-    """
+<div style="margin-top:10px; padding:10px; background:#ffffff; border-radius:8px;">
+<strong>Prediction (6h):</strong> Water {pred6['water_level']}m, Rain {pred6['rainfall']}mm — {pred6['risk_level']}<br>
+<strong>Prediction (12h):</strong> Water {pred12['water_level']}m, Rain {pred12['rainfall']}mm — {pred12['risk_level']}<br>
+{meteo_html}
+{sat_html}
+</div>
+"""
 
-     html_content = f"""
-    <div style='padding:20px; border-radius:15px; font-size:18px; background-color:{bg_color};'>
-        <div style='height:15px; width:100%; background-color:{bar_color}; animation: flash 1s infinite; border-radius:10px; margin-bottom:10px;'></div>
-        <strong>{sensor_display}</strong><br><br>
-        {risk_level}<br><br>
-        {role_message}<br>
-        {ai_guidance.replace(chr(10), '<br>')}
-        {prediction_html}
-    </div>
-    <style>
-    @keyframes flash {{
-        0% {{opacity:1;}}
-        50% {{opacity:0.3;}}
-        100% {{opacity:1;}}
-    }}
-    </style>
-    """
+    html_content = f"""
+<div style='padding:20px; border-radius:15px; font-size:18px; background-color:{bg_color};'>
+<div style='height:15px; width:100%; background-color:{bar_color}; animation:flash 1s infinite; border-radius:10px; margin-bottom:10px;'></div>
+<strong>{sensor_display}</strong><br><br>
+{risk_level}<br><br>
+{role_message}<br>
+{ai_guidance.replace(chr(10), '<br>')}
+{prediction_html}
+</div>
 
-    html_content = textwrap.dedent(html_content).strip()
+<style>
+@keyframes flash {{
+0% {{opacity:1;}}
+50% {{opacity:0.3;}}
+100% {{opacity:1;}}
+}}
+</style>
+"""
 
     return html_content
 # ------------------------------
