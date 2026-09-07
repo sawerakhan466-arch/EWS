@@ -46,9 +46,10 @@ def get_ai_guidance(water_level, rainfall, glacier_melt):
     try:
         if not os.environ.get("GROQ_API_KEY"):
             raise Exception("No API key present")
+        model_name = os.environ.get("GROQ_MODEL", "llama-3.3-70b-versatile")
         response = client.chat.completions.create(
             messages=[{"role": "user", "content": prompt}],
-            model="llama-3.3-70b-versatile",
+            model=model_name,
         )
         return response.choices[0].message.content
     except Exception as e:
@@ -542,7 +543,10 @@ def generate_alert(role):
         <strong>{sensor_display}</strong><br><br>
         {risk_level}<br><br>
         {role_message}<br>
-        {ai_guidance.replace(chr(10), '<br>')}
+        <div style='margin-top:10px;'>
+            <strong>AI Safety Guidance:</strong><br>
+            {ai_guidance.replace(chr(10), '<br>')}
+        </div>
         {prediction_html}
     </div>
     <style>
