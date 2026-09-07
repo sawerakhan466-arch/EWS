@@ -484,8 +484,9 @@ def generate_alert(role):
     sensor_display = f"🌊 Water Level: {water_level} m | ☔ Rainfall: {rainfall} mm | 🗻 Glacier Melt: {glacier_melt} cm"
 
     # Role-specific messages unchanged
-   if role == "Public":
-    role_message = """
+       # Role-specific messages unchanged
+    if role == "Public":
+        role_message = """
 <h3 style='color:#b30000;'>⚠️ PUBLIC ALERT</h3>
 <ul>
 <li>Stay away from riverbanks and risky areas.</li>
@@ -494,8 +495,8 @@ def generate_alert(role):
 </ul>
 """
 
-elif role == "Rescue Worker":
-    role_message = """
+    elif role == "Rescue Worker":
+        role_message = """
 <h3 style='color:#004080;'>🛟 RESCUE WORKER ALERT</h3>
 <ul>
 <li>Dispatch teams to high-risk zones.</li>
@@ -504,8 +505,8 @@ elif role == "Rescue Worker":
 </ul>
 """
 
-elif role == "Admin":
-    role_message = """
+    elif role == "Admin":
+        role_message = """
 <h3 style='color:#5c0099;'>🛠️ ADMIN ALERT</h3>
 <ul>
 <li>Verify sensor data & system health.</li>
@@ -514,8 +515,8 @@ elif role == "Admin":
 </ul>
 """
 
-else:
-    role_message = ""
+    else:
+        role_message = ""
 
     # Prediction snippet (6 & 12 hours)
     pred6 = predict_next_hours(6)
