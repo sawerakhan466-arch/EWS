@@ -5,10 +5,6 @@ Document
 
 ye code hai mei isk github pe push kar ke streamlit pe deploy karna chahti hun
 
-Ji, bilkul — HTML tags is liye show ho rahe hain kyunki Streamlit mein aap HTML string ko normal text ki tarah display kar rahi hain.
-
-Agar aapke code mein kuch aisa hai:
-
 st.write(alert)
 
 to Streamlit <h3>, <ul>, <li> ko HTML ki tarah render nahi karega.
