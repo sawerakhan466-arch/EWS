@@ -541,16 +541,13 @@ def generate_alert(role):
     </div>
     """
 
-    html_content = f"""
+     html_content = f"""
     <div style='padding:20px; border-radius:15px; font-size:18px; background-color:{bg_color};'>
         <div style='height:15px; width:100%; background-color:{bar_color}; animation: flash 1s infinite; border-radius:10px; margin-bottom:10px;'></div>
         <strong>{sensor_display}</strong><br><br>
         {risk_level}<br><br>
         {role_message}<br>
-        <div style='margin-top:10px;'>
-            <strong>AI Safety Guidance:</strong><br>
-            {ai_guidance.replace(chr(10), '<br>')}
-        </div>
+        {ai_guidance.replace(chr(10), '<br>')}
         {prediction_html}
     </div>
     <style>
@@ -561,8 +558,10 @@ def generate_alert(role):
     }}
     </style>
     """
-    return html_content
 
+    html_content = textwrap.dedent(html_content).strip()
+
+    return html_content
 # ------------------------------
 # Validation helpers (NEW additions — do not alter existing flows)
 # ------------------------------
