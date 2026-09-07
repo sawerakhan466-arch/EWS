@@ -484,35 +484,38 @@ def generate_alert(role):
     sensor_display = f"🌊 Water Level: {water_level} m | ☔ Rainfall: {rainfall} mm | 🗻 Glacier Melt: {glacier_melt} cm"
 
     # Role-specific messages unchanged
-    if role == "Public":
-        role_message = f"""
-        <h3 style='color:#b30000;'>⚠️ PUBLIC ALERT</h3>
-        <ul>
-            <li>Stay away from riverbanks and risky areas.</li>
-            <li>Keep emergency contacts ready.</li>
-            <li>Move to higher ground if necessary.</li>
-        </ul>
-        """
-    elif role == "Rescue Worker":
-        role_message = f"""
-        <h3 style='color:#004080;'>🛟 RESCUE WORKER ALERT</h3>
-        <ul>
-            <li>Dispatch teams to high-risk zones.</li>
-            <li>Ensure first-aid, ropes, and rescue kits ready.</li>
-            <li>Coordinate with admin for evacuation routes.</li>
-        </ul>
-        """
-    elif role == "Admin":
-        role_message = f"""
-        <h3 style='color:#5c0099;'>🛠️ ADMIN ALERT</h3>
-        <ul>
-            <li>Verify sensor data & system health.</li>
-            <li>Approve or override alerts if needed.</li>
-            <li>Monitor rescue team readiness.</li>
-        </ul>
-        """
-    else:
-        role_message = ""
+   if role == "Public":
+    role_message = """
+<h3 style='color:#b30000;'>⚠️ PUBLIC ALERT</h3>
+<ul>
+<li>Stay away from riverbanks and risky areas.</li>
+<li>Keep emergency contacts ready.</li>
+<li>Move to higher ground if necessary.</li>
+</ul>
+"""
+
+elif role == "Rescue Worker":
+    role_message = """
+<h3 style='color:#004080;'>🛟 RESCUE WORKER ALERT</h3>
+<ul>
+<li>Dispatch teams to high-risk zones.</li>
+<li>Ensure first-aid, ropes, and rescue kits ready.</li>
+<li>Coordinate with admin for evacuation routes.</li>
+</ul>
+"""
+
+elif role == "Admin":
+    role_message = """
+<h3 style='color:#5c0099;'>🛠️ ADMIN ALERT</h3>
+<ul>
+<li>Verify sensor data & system health.</li>
+<li>Approve or override alerts if needed.</li>
+<li>Monitor rescue team readiness.</li>
+</ul>
+"""
+
+else:
+    role_message = ""
 
     # Prediction snippet (6 & 12 hours)
     pred6 = predict_next_hours(6)
