@@ -26,7 +26,6 @@ import math
 import requests
 import re
 from datetime import datetime, timedelta
-import gradio as gr
 from groq import Groq
 
 # ------------------------------
