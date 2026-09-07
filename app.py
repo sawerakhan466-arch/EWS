@@ -46,10 +46,7 @@ def get_ai_guidance(water_level, rainfall, glacier_melt):
     try:
         if not os.environ.get("GROQ_API_KEY"):
             raise Exception("No API key present")
-        model_name = os.environ.get(
-            "GROQ_MODEL",
-            "llama-3.3-70b-versatile"
-        )
+        model_name = os.environ.get("GROQ_MODEL", "llama-3.3-70b-versatile")
         response = client.chat.completions.create(
             messages=[{"role": "user", "content": prompt}],
             model=model_name,
@@ -472,57 +469,95 @@ def nasa_gibs_tile_template(layer="MODIS_Terra_CorrectedReflectance_TrueColor", 
 # Generate alert HTML (keeps original style & role messages) — unchanged aside from adding optional weather snippet
 # ------------------------------
 def generate_alert(role):
-    """
-    Generate risk information and AI guidance.
-    The Streamlit UI renders role alerts separately, so HTML tags
-    are not returned as part of the alert data.
-    """
+    # Preserve original behavior + now add predicted risk snippets and SMS control
     water_level, rainfall, glacier_melt = simulate_sensor_data()
 
-    risk_score = compute_risk_score(
-        water_level, rainfall, glacier_melt
-    )
-
+    risk_score = compute_risk_score(water_level, rainfall, glacier_melt)
     risk_level, bar_color, bg_color = risk_level_info(risk_score)
 
+    # AI guidance only for Moderate/High risk, same as original
     if risk_score >= 3:
-        ai_guidance = get_ai_guidance(
-            water_level,
-            rainfall,
-            glacier_melt
-        )
+        ai_guidance = get_ai_guidance(water_level, rainfall, glacier_melt)
     else:
-        ai_guidance = (
-            "No action required. "
-            "All parameters are within safe limits."
-        )
+        ai_guidance = "No action required. All parameters are within safe limits."
 
+    sensor_display = f"🌊 Water Level: {water_level} m | ☔ Rainfall: {rainfall} mm | 🗻 Glacier Melt: {glacier_melt} cm"
+
+    # Role-specific messages unchanged
+    if role == "Public":
+        role_message = f"""
+        <h3 style='color:#b30000;'>⚠️ PUBLIC ALERT</h3>
+        <ul>
+            <li>Stay away from riverbanks and risky areas.</li>
+            <li>Keep emergency contacts ready.</li>
+            <li>Move to higher ground if necessary.</li>
+        </ul>
+        """
+    elif role == "Rescue Worker":
+        role_message = f"""
+        <h3 style='color:#004080;'>🛟 RESCUE WORKER ALERT</h3>
+        <ul>
+            <li>Dispatch teams to high-risk zones.</li>
+            <li>Ensure first-aid, ropes, and rescue kits ready.</li>
+            <li>Coordinate with admin for evacuation routes.</li>
+        </ul>
+        """
+    elif role == "Admin":
+        role_message = f"""
+        <h3 style='color:#5c0099;'>🛠️ ADMIN ALERT</h3>
+        <ul>
+            <li>Verify sensor data & system health.</li>
+            <li>Approve or override alerts if needed.</li>
+            <li>Monitor rescue team readiness.</li>
+        </ul>
+        """
+    else:
+        role_message = ""
+
+    # Prediction snippet (6 & 12 hours)
     pred6 = predict_next_hours(6)
     pred12 = predict_next_hours(12)
+    # Fetch a small open-meteo forecast for a sample lat/lon (for display). You can replace lat/lon with actual sensor location.
+    sample_lat, sample_lon = 35.8600, 71.7888  # central Chitral approx
+    meteo = fetch_open_meteo_forecast(sample_lat, sample_lon, hours=6)
+    meteo_html = ""
+    if "precipitation_sum_next_hours" in meteo:
+        meteo_html = f"<div><strong>Weather (next 6h forecast):</strong> Precipitation ≈ {meteo['precipitation_sum_next_hours']} mm</div>"
 
-    sample_lat, sample_lon = 35.8600, 71.7888
-    meteo = fetch_open_meteo_forecast(
-        sample_lat, sample_lon, hours=6
-    )
-
+    # Satellite tile info (note: now returns current template and date, but UI allows edit)
     sat = nasa_gibs_tile_template()
+    sat_html = f"<div><strong>Satellite tile (GIBS):</strong> {sat['layer']} (date {sat['date']}) — use template in dashboard.</div>"
 
-    return {
-        "role": role,
-        "water_level": water_level,
-        "rainfall": rainfall,
-        "glacier_melt": glacier_melt,
-        "risk_score": risk_score,
-        "risk_level": risk_level,
-        "bar_color": bar_color,
-        "bg_color": bg_color,
-        "ai_guidance": ai_guidance,
-        "pred6": pred6,
-        "pred12": pred12,
-        "meteo": meteo,
-        "sat": sat
-    }
+    prediction_html = f"""
+    <div style="margin-top:10px; padding:10px; background: #ffffff; border-radius:8px;">
+        <strong>Prediction (6h):</strong> Water {pred6['water_level']}m, Rain {pred6['rainfall']}mm — {pred6['risk_level']}<br>
+        <strong>Prediction (12h):</strong> Water {pred12['water_level']}m, Rain {pred12['rainfall']}mm — {pred12['risk_level']}<br>
+        {meteo_html}
+        {sat_html}
+    </div>
+    """
 
+    html_content = f"""
+    <div style='padding:20px; border-radius:15px; font-size:18px; background-color:{bg_color};'>
+        <div style='height:15px; width:100%; background-color:{bar_color}; animation: flash 1s infinite; border-radius:10px; margin-bottom:10px;'></div>
+        <strong>{sensor_display}</strong><br><br>
+        {risk_level}<br><br>
+        {role_message}<br>
+        <div style='margin-top:10px;'>
+            <strong>AI Safety Guidance:</strong><br>
+            {ai_guidance.replace(chr(10), '<br>')}
+        </div>
+        {prediction_html}
+    </div>
+    <style>
+    @keyframes flash {{
+        0% {{opacity:1;}}
+        50% {{opacity:0.3;}}
+        100% {{opacity:1;}}
+    }}
+    </style>
+    """
+    return html_content
 
 # ------------------------------
 # Validation helpers (NEW additions — do not alter existing flows)
@@ -662,221 +697,60 @@ st.set_page_config(
 
 st.markdown(
     """
-    <h1 style='text-align:center; color:#743089; font-weight:bold;'>
+    <h1 style='text-align:center; color:#743089; font-weight:bold; text-transform:uppercase;'>
     🌨️ CHITRAL GLACIER RISK & EARLY WARNING SYSTEM 🌄
     </h1>
     """,
     unsafe_allow_html=True
 )
 
-# Store structured alert data, NOT an HTML string.
-if "alert_data" not in st.session_state:
-    st.session_state.alert_data = generate_alert("Public")
+# Initialize session state for generated alert and logs.
+if "alert_html" not in st.session_state:
+    st.session_state.alert_html = generate_alert("Public")
 
 left, right = st.columns([2, 1])
 
 with left:
-
-    st.markdown("### 👤 Select Role")
-
     role = st.radio(
         "Select your role",
         ["Public", "Rescue Worker", "Admin"],
         index=0
     )
 
-    if st.button(
-        "🔍 Analyze Risk",
-        use_container_width=True
-    ):
-        st.session_state.alert_data = generate_alert(role)
+    if st.button("🔄 Refresh Live Monitoring", use_container_width=True):
+        st.session_state.alert_html = generate_alert(role)
 
-    alert = st.session_state.alert_data
+    st.markdown(st.session_state.alert_html, unsafe_allow_html=True)
 
-    # ---------------------------------
-    # LIVE MONITORING
-    # ---------------------------------
+    st.markdown("### Predictions")
 
-    st.markdown("---")
-    st.subheader("🌡️ Live Monitoring")
+    col1, col2 = st.columns(2)
 
-    c1, c2, c3 = st.columns(3)
-
-    with c1:
-        st.metric(
-            "🌊 Water Level",
-            f"{alert['water_level']} m"
-        )
-
-    with c2:
-        st.metric(
-            "☔ Rainfall",
-            f"{alert['rainfall']} mm"
-        )
-
-    with c3:
-        st.metric(
-            "🗻 Glacier Melt",
-            f"{alert['glacier_melt']} cm"
-        )
-
-    # ---------------------------------
-    # RISK ASSESSMENT
-    # ---------------------------------
-
-    st.markdown("---")
-    st.subheader("🚨 Risk Assessment")
-
-    if alert["risk_score"] >= 5:
-        st.error(
-            f"🔴 {alert['risk_level']}"
-        )
-    elif alert["risk_score"] >= 3:
-        st.warning(
-            f"🟠 {alert['risk_level']}"
-        )
-    else:
-        st.success(
-            f"🟢 {alert['risk_level']}"
-        )
-
-    st.write(
-        f"**Risk Score:** {alert['risk_score']}"
-    )
-
-    # ---------------------------------
-    # ROLE-SPECIFIC ALERT
-    # ---------------------------------
-
-    st.markdown("---")
-
-    if alert["role"] == "Public":
-
-        st.subheader("⚠️ PUBLIC ALERT")
-
-        st.markdown(
-            """
-            - Stay away from riverbanks and risky areas.
-            - Keep emergency contacts ready.
-            - Move to higher ground if necessary.
-            """
-        )
-
-    elif alert["role"] == "Rescue Worker":
-
-        st.subheader("🛟 RESCUE WORKER ALERT")
-
-        st.markdown(
-            """
-            - Dispatch teams to high-risk zones.
-            - Ensure first-aid, ropes, and rescue kits are ready.
-            - Coordinate with admin for evacuation routes.
-            """
-        )
-
-    elif alert["role"] == "Admin":
-
-        st.subheader("🛠️ ADMIN ALERT")
-
-        st.markdown(
-            """
-            - Verify sensor data and system health.
-            - Approve or override alerts if needed.
-            - Monitor rescue team readiness.
-            """
-        )
-
-    # ---------------------------------
-    # AI SAFETY GUIDANCE
-    # ---------------------------------
-
-    st.markdown("---")
-    st.subheader("🤖 AI Safety Guidance")
-
-    if alert["ai_guidance"].startswith(
-        "AI guidance unavailable"
-    ):
-        st.warning(alert["ai_guidance"])
-    else:
-        st.info(alert["ai_guidance"])
-
-    # ---------------------------------
-    # PREDICTIONS
-    # ---------------------------------
-
-    st.markdown("---")
-    st.subheader("🔮 Risk Predictions")
-
-    p1, p2 = st.columns(2)
-
-    with p1:
-        st.markdown("#### +6 Hours")
-        st.write(
-            f"🌊 Water: {alert['pred6']['water_level']} m"
-        )
-        st.write(
-            f"☔ Rainfall: {alert['pred6']['rainfall']} mm"
-        )
-        st.write(
-            f"⚠️ {alert['pred6']['risk_level']}"
-        )
-
-    with p2:
-        st.markdown("#### +12 Hours")
-        st.write(
-            f"🌊 Water: {alert['pred12']['water_level']} m"
-        )
-        st.write(
-            f"☔ Rainfall: {alert['pred12']['rainfall']} mm"
-        )
-        st.write(
-            f"⚠️ {alert['pred12']['risk_level']}"
-        )
-
-    # ---------------------------------
-    # WEATHER
-    # ---------------------------------
-
-    if "precipitation_sum_next_hours" in alert["meteo"]:
-
-        st.markdown("---")
-        st.subheader("🌦️ Weather Forecast")
-
-        st.write(
-            "Next 6 hours precipitation: "
-            f"{alert['meteo']['precipitation_sum_next_hours']} mm"
-        )
-
-        if alert["meteo"]["peak_temp_next_hours"] is not None:
-            st.write(
-                "Peak temperature: "
-                f"{alert['meteo']['peak_temp_next_hours']} °C"
+    with col1:
+        if st.button("Predict +6 hours", use_container_width=True):
+            p = predict_next_hours(6)
+            st.info(
+                f"6-hour prediction — Water {p['water_level']} m, "
+                f"Rain {p['rainfall']} mm — {p['risk_level']}"
             )
 
-    # ---------------------------------
-    # COMMUNITY REPORTING
-    # ---------------------------------
+    with col2:
+        if st.button("Predict +12 hours", use_container_width=True):
+            p = predict_next_hours(12)
+            st.info(
+                f"12-hour prediction — Water {p['water_level']} m, "
+                f"Rain {p['rainfall']} mm — {p['risk_level']}"
+            )
 
-    st.markdown("---")
-    st.subheader("📢 Community Reporting")
+    st.markdown("### Community Reporting")
 
     name_in = st.text_input("Your name")
     phone_in = st.text_input("Phone (digits only)")
     location_in = st.text_input("Location / Landmark")
-    severity_in = st.selectbox(
-        "Severity",
-        ["Low", "Medium", "High"],
-        index=1
-    )
-    notes_in = st.text_area(
-        "Notes / Observations",
-        height=100
-    )
+    severity_in = st.selectbox("Severity", ["Low", "Medium", "High"], index=1)
+    notes_in = st.text_area("Notes / Observations", height=100)
 
-    if st.button(
-        "Submit Report",
-        use_container_width=True
-    ):
+    if st.button("Submit Report", use_container_width=True):
         status, report_display = ui_submit_report(
             name_in,
             phone_in,
@@ -884,40 +758,25 @@ with left:
             severity_in,
             notes_in
         )
-
         if status.startswith("Error"):
             st.error(status)
         else:
             st.success(status)
-
-        st.markdown(
-            report_display,
-            unsafe_allow_html=True
-        )
-
-    # ---------------------------------
-    # SMS PANEL
-    # ---------------------------------
+        st.markdown(report_display, unsafe_allow_html=True)
 
     st.markdown("---")
-    st.subheader("📱 SMS Panel (FYP Demo)")
+
+    st.markdown("### SMS Panel (Simulated - FYP Demo)")
 
     provider = st.selectbox(
         "Select Provider (simulated)",
         ["Jazz", "Zong", "Ufone", "Telenor"],
         index=3
     )
-
     phone_to = st.text_input(
         "Phone Number (digits only, e.g. 923001234567)"
     )
-
-    sms_lang = st.radio(
-        "Language",
-        ["EN", "UR"],
-        horizontal=True
-    )
-
+    sms_lang = st.radio("Language", ["EN", "UR"], horizontal=True)
     sms_hours = st.slider(
         "Alert prediction hours ahead",
         min_value=1,
@@ -925,7 +784,6 @@ with left:
         value=6,
         step=1
     )
-
     sms_role = st.radio(
         "Role for message",
         ["Public", "Rescue Worker", "Admin"],
@@ -944,119 +802,72 @@ with left:
             sms_hours,
             sms_role
         )
-
         if sms_status.startswith("Error"):
             st.error(sms_status)
         else:
             st.success(sms_status)
-
-        st.markdown(
-            sms_log,
-            unsafe_allow_html=True
-        )
-
+        st.markdown(sms_log, unsafe_allow_html=True)
 
 with right:
+    st.markdown("### Recent Community Reports")
 
-    # ---------------------------------
-    # RECENT COMMUNITY REPORTS
-    # ---------------------------------
-
-    st.subheader("📋 Recent Community Reports")
-
-    st.markdown(
-        ui_load_reports(),
-        unsafe_allow_html=True
-    )
-
-    if st.button(
-        "🔄 Refresh Reports",
-        use_container_width=True
-    ):
+    if st.button("Refresh Reports", use_container_width=True):
         st.rerun()
 
-    # ---------------------------------
-    # SMS LOG
-    # ---------------------------------
+    st.markdown(ui_load_reports(), unsafe_allow_html=True)
 
-    st.markdown("---")
-    st.subheader("📨 SMS Log")
+    st.markdown("### SMS Log (last entries)")
 
-    st.markdown(
-        ui_load_sms_log(),
-        unsafe_allow_html=True
-    )
-
-    if st.button(
-        "🔄 Refresh SMS Log",
-        use_container_width=True
-    ):
+    if st.button("Refresh SMS Log", use_container_width=True):
         st.rerun()
 
-    # ---------------------------------
-    # SATELLITE
-    # ---------------------------------
+    st.markdown(ui_load_sms_log(), unsafe_allow_html=True)
 
-    st.markdown("---")
-    st.subheader("🛰️ Satellite / GIBS Tile Helper")
+    st.markdown("### Satellite / GIBS Tile Helper")
 
     st.write(
-        "Enter a date (YYYY-MM-DD) to generate the "
-        "NASA GIBS WMTS tile template."
+        "Enter a date (YYYY-MM-DD) to fetch the NASA GIBS WMTS tile "
+        "template for that date. The default is today's date but you "
+        "can enter a past date to view historical tiles."
     )
 
     sat_layer = st.text_input(
-        "GIBS Layer",
+        "GIBS Layer (e.g. MODIS_Terra_CorrectedReflectance_TrueColor)",
         value="MODIS_Terra_CorrectedReflectance_TrueColor"
     )
 
     sat_date = st.text_input(
-        "Tile date (YYYY-MM-DD)",
+        "Tile date (YYYY-MM-DD) — editable",
         value=datetime.utcnow().strftime("%Y-%m-%d")
     )
 
-    if st.button(
-        "Generate Tile Template",
-        use_container_width=True
-    ):
-        # Render this result as plain text/code instead of raw HTML.
-        satellite_result = ui_satellite_template(
-            sat_date,
-            sat_layer
-        )
-        st.code(
-            satellite_result.replace("<br>", "\n").replace("<strong>", "").replace("</strong>", ""),
-            language="text"
+    if st.button("Generate Tile Template", use_container_width=True):
+        st.markdown(
+            ui_satellite_template(sat_date, sat_layer),
+            unsafe_allow_html=True
         )
 
-    # ---------------------------------
-    # PWA / OFFLINE MODE
-    # ---------------------------------
+    st.markdown("### PWA / Offline Mode (mobile-friendly)")
 
-    st.markdown("---")
-    st.subheader("📱 PWA / Offline Mode")
-
-    st.write(
-        "This Streamlit demo is mobile-friendly. "
-        "The original application included a client-side "
-        "offline queue concept."
+    st.markdown(
+        """
+        This demo includes a client-side Service Worker and offline queue
+        concept from the original application. On supported browsers,
+        mobile users can use browser options such as **Add to Home Screen**.
+        """
     )
 
-    # ---------------------------------
-    # NOTES
-    # ---------------------------------
-
-    st.markdown("---")
-    st.subheader("ℹ️ Notes / Limitations")
+    st.markdown("### Notes / Limitations")
 
     st.markdown(
         """
         - SMS/WhatsApp/Voice features use Twilio when configured.
-        - Without Twilio credentials, the system uses simulated logging.
-        - Update `DEPARTMENT_CONTACTS` with real department contacts.
-        - Open-Meteo provides short-term weather forecasts.
-        - NASA GIBS provides the satellite tile template.
-        - Sensor readings in this FYP prototype are simulated.
+        - If TWILIO_* environment variables are missing, the system falls
+          back to simulated logging.
+        - Update `DEPARTMENT_CONTACTS` with real phone numbers and emails
+          for automatic routing.
+        - Open-Meteo provides free short-term forecasts — no API key needed.
+        - NASA GIBS tile template is provided for satellite overlays in a
+          map; no direct image fetch is performed here.
         """
     )
-
