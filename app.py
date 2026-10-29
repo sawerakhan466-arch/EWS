@@ -1,3 +1,4 @@
+
 # Upgraded Chitral Early Warning System (Gradio) — UPDATED with:
 # - Multi-channel alerts (Twilio: SMS / WhatsApp / Voice) with simulated fallback
 # - Department auto-routing for community reports
@@ -55,7 +56,7 @@ def get_ai_guidance(water_level, rainfall, glacier_melt):
     except Exception as e:
         # Local fallback (safe, short)
         fallback = (
-            "AI guidance unavailable (offline). Follow local safety rules:\n"
+            "Follow local safety rules:\n"
             "- Move to higher ground if water rises or river level increases.\n"
             "- Keep emergency kit (water, flashlight, medicines, important docs).\n"
             "- Keep mobile charged and maintain contact with rescue teams.\n"
